@@ -13,6 +13,12 @@ using Vector2 = UnityEngine.Vector2;
 // the path direction
 // and some sort of density flow / influence graph to determine which direction to move.
 
+// solution?
+// we are already setting the RVO2 preferred velocity based on just the nav mesh corners.
+// consider have additional processing there to add other kinds of steering.
+// see: https://gamedevelopment.tutsplus.com/tutorials/understanding-steering-behaviors-movement-manager--gamedev-4278
+// combine multiple desired velocities of various steerings.
+
 public class RVO2Agent : MonoBehaviour
 {
   [Header("RVO2 Agent")]
