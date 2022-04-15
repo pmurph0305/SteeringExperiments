@@ -24,10 +24,9 @@ public class Edge : IEqualityComparer<Edge>
     i1 = index1;
   }
 
-  float epsilon = 0.001f;
+  float epsilon = 0.0001f;
   bool Approx(Vector3 v1, Vector3 v2)
   {
-
     return (Mathf.Abs(v1.x - v2.x) < epsilon) && (Mathf.Abs(v1.y - v2.y) < epsilon) && (Mathf.Abs(v1.z - v2.z) < epsilon);
   }
 
@@ -49,6 +48,7 @@ public class Edge : IEqualityComparer<Edge>
   // and indicies not actually being shared in the nav mesh.
   public override int GetHashCode()
   {
+    // return 0;
     Vector3Int p0i = new Vector3Int(Mathf.RoundToInt(p0.x), Mathf.RoundToInt(p0.y), Mathf.RoundToInt(p0.z));
     Vector3Int p1i = new Vector3Int(Mathf.RoundToInt(p1.x), Mathf.RoundToInt(p1.y), Mathf.RoundToInt(p1.z));
     return (p0i + p1i).GetHashCode();
@@ -56,7 +56,12 @@ public class Edge : IEqualityComparer<Edge>
   public override bool Equals(object obj)
   {
     Edge e = (Edge)obj;
-    return (e.p0 == p0 && e.p1 == p1) || (e.p0 == p1 && e.p1 == p0);
+    if ((e.i0 == i0 && e.i1 == i1) || (e.i1 == i0 && e.i0 == i1))
+    {
+      return true;
+    }
+    return (Approx(e.p0, p0) && Approx(e.p1, p1)) || (Approx(e.p1, p0) && Approx(e.p0, p1));
+    // return (e.p0 == p0 && e.p1 == p1) || (e.p0 == p1 && e.p1 == p0);
   }
 
   public bool Equals(Edge x, Edge y)
