@@ -5,10 +5,17 @@ using System;
 using UnityEngine.AI;
 public class PathSupplier : MonoBehaviour
 {
+  [SerializeField] List<NavMeshAgent> agents;
   private static PathSupplier instance;
   private void Awake()
   {
     instance = this;
+    foreach (var a in agents)
+    {
+      a.updatePosition = false;
+      a.updateRotation = false;
+      // a.isStopped = true;
+    }
   }
   Queue<PathRequest> Requests = new Queue<PathRequest>();
   HashSet<int> QueuedTransforms = new HashSet<int>();
@@ -30,13 +37,31 @@ public class PathSupplier : MonoBehaviour
       PathRequest r = Requests.Peek();
       if (NavMesh.SamplePosition(r.T.position, out hit, 1f, NavMesh.AllAreas))
       {
-        if (NavMesh.CalculatePath(hit.position, r.GoalGetter(), NavMesh.AllAreas, r.path))
+        NavMeshAgent a = agents[UnityEngine.Random.Range(0, agents.Count)];
+        if (a.Warp(hit.position))
         {
-          // Debug.Log("Dequeue");
-          Requests.Dequeue();
-          QueuedTransforms.Remove(r.T.GetInstanceID());
-          r.OnCompleted(r.path);
+          if (a.CalculatePath(r.GoalGetter(), r.path))
+          {
+            Requests.Dequeue();
+            QueuedTransforms.Remove(r.T.GetInstanceID());
+            r.completed = true;
+            r.OnCompleted(r.path);
+          }
         }
+        // if (a.CalculatePath(hi))
+        // if (NavMesh.CalculatePath(hit.position, r.GoalGetter(), NavMesh.AllAreas, r.path))
+        // {
+        //   // Debug.Log("Dequeue");
+        //   Requests.Dequeue();
+        //   QueuedTransforms.Remove(r.T.GetInstanceID());
+        //   r.OnCompleted(r.path);
+        // }
+      }
+      r.attempts += 1;
+      if (r.attempts > 3 && !r.completed)
+      {
+        Requests.Dequeue();
+        Requests.Enqueue(r);
       }
     }
     pathMarker.End();
@@ -60,6 +85,8 @@ public class PathSupplier : MonoBehaviour
     public Transform T;
     public Action<NavMeshPath> OnCompleted;
 
+    public int attempts = 0;
+    public bool completed = false;
     public Func<Vector3> GoalGetter;
     public PathRequest(Transform t, Vector3 goal, Action<NavMeshPath> onComplete)
     {
