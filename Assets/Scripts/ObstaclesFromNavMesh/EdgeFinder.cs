@@ -2,29 +2,56 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.AI.Navigation;
 using System;
 using System.Linq;
+using RVO;
 public class EdgeFinder : MonoBehaviour
 {
-  NavMeshHit hit;
+
+
+  void Awake()
+  {
+    List<List<RVO.Vector2>> v2Lists = GetObstaclesFromNavMesh();
+    Debug.Log("# of obstacles:" + v2Lists.Count);
+    foreach (var item in v2Lists)
+    {
+      // item.Reverse();
+      Simulator.Instance.addObstacle(item);
+    }
+    Simulator.Instance.processObstacles();
+  }
 
   private void OnDrawGizmosSelected()
   {
-    NavMesh.FindClosestEdge(transform.position, out hit, NavMesh.AllAreas);
-    Gizmos.color = Color.green;
-    Gizmos.DrawSphere(hit.position, 1f);
-    Gizmos.color = Color.red;
-    Gizmos.DrawLine(hit.position, hit.position + hit.normal * hit.distance);
     DrawEdges();
   }
 
-  public NavMeshEdges GetEdges()
+  /// <summary>
+  /// Gets the RVO2 ready polygons for the nav mesh.
+  /// </summary>
+  /// <returns></returns>
+  public List<List<RVO.Vector2>> GetObstaclesFromNavMesh()
+  {
+    // NavMeshEdges edges = GetEdges();
+    // List<List<Vector3>> v3s = ToPolygons(edges);
+    // List<List<RVO.Vector2>> v2s = ToRVOObstacles(v3s);
+    // return v2s;
+    return ToRVOObstacles(ToPolygons(GetEdges(0)));
+  }
+
+  /// <summary>
+  /// Gets the edges by using the first "Area" layer of a navmesh, by default this is the "Walkable" layer.
+  /// </summary>
+  /// <returns></returns>
+  private NavMeshEdges GetEdges(int baseWalkableAreaLayer)
   {
     NavMeshTriangulation nmt = NavMesh.CalculateTriangulation();
     HashSet<Edge> allEdges = new HashSet<Edge>();
     HashSet<Edge> duplicatedEdges = new HashSet<Edge>();
     for (int i = 0; i < nmt.indices.Length; i += 3)
     {
+      if (nmt.areas[i / 3] != baseWalkableAreaLayer) continue;
       int i0 = nmt.indices[i];
       int i1 = nmt.indices[i + 1];
       int i2 = nmt.indices[i + 2];
@@ -55,13 +82,13 @@ public class EdgeFinder : MonoBehaviour
   }
 
   float epsilon = 0.0001f;
-  bool Approx(Vector3 v1, Vector3 v2)
+  private bool Approx(Vector3 v1, Vector3 v2)
   {
 
     return (Mathf.Abs(v1.x - v2.x) < epsilon) && (Mathf.Abs(v1.y - v2.y) < epsilon) && (Mathf.Abs(v1.z - v2.z) < epsilon);
   }
 
-  public List<List<RVO.Vector2>> ToRVOObstacles(List<List<Vector3>> v3Lists)
+  private List<List<RVO.Vector2>> ToRVOObstacles(List<List<Vector3>> v3Lists)
   {
     List<List<RVO.Vector2>> rvoLists = new List<List<RVO.Vector2>>();
 
@@ -76,12 +103,22 @@ public class EdgeFinder : MonoBehaviour
     }
     return rvoLists;
   }
-  public bool isLeft(Vector3 a, Vector3 b, Vector3 c)
+  private bool isLeft(Vector3 a, Vector3 b, Vector3 c)
   {
     return ((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)) > 0;
   }
 
-  public List<List<Vector3>> ToPolygons(NavMeshEdges navEdges)
+
+  /// <summary>
+  /// Turns edges of a nav mesh into polygons that can be used by RVO2 as obstacles. 
+  /// The outer edges of the nav mesh should correctly be oriented in a CW order so that it is an inverted obstacle, while normal obstacles are in CCW order.
+  /// Known issues: Can cause problems when using a NavMesh that has multiple NavMeshSurfaces, as there's no way to distinguish them
+  /// Possible solution: use a single area layer like "Walkable" for finding the edges, and use a different layer
+  /// for the actual agent pathfinding.
+  /// </summary>
+  /// <param name="navEdges"></param>
+  /// <returns></returns>
+  private List<List<Vector3>> ToPolygons(NavMeshEdges navEdges)
   {
     List<List<Vector3>> VerticesLists = new List<List<Vector3>>();
     HashSet<Edge> uniqueEdges = new HashSet<Edge>(navEdges.UniqueEdges);
@@ -202,34 +239,10 @@ public class EdgeFinder : MonoBehaviour
 
   void DrawEdges()
   {
+    // triangulate, split up the edges into commona nd unique, and then turn the unique ones into polygons in CCW order (except an outer bounding box, which is in CW order so it's interior is not an obstacle)
     NavMeshTriangulation nmt = NavMesh.CalculateTriangulation();
-    // Dictionary<int, int> counts = new Dictionary<int, int>();
-    // for (int i = 0; i < nmt.indices.Length; i++)
-    // {
-    //   if (counts.ContainsKey(nmt.indices[i]))
-    //   {
-    //     counts[nmt.indices[i]] += 1;
-    //   }
-    //   else
-    //   {
-    //     counts.Add(nmt.indices[i], 1);
-    //   }
-    // }
-    // int sharedIndices = 0;
-    // foreach (var kvp in counts)
-    // {
-    //   if (kvp.Value > 1)
-    //   {
-    //     sharedIndices++;
-    //   }
-    // }
-    // Debug.Log("Shared indices:" + sharedIndices);
-
-    NavMeshEdges edges = GetEdges();
+    NavMeshEdges edges = GetEdges(0);
     List<List<Vector3>> lists = ToPolygons(edges);
-    // List<List<Edge>> lists = ToPolygons(edges);
-    Debug.Log("List count:" + lists.Count);
-    Gizmos.color = Color.yellow;
     Color colorStart = Color.green;
     Color colorEnd = Color.red;
     Vector3 upset = Vector3.up;
@@ -241,21 +254,20 @@ public class EdgeFinder : MonoBehaviour
         Gizmos.color = Color.Lerp(colorStart, colorEnd, (float)i / (float)l.Count);
         Gizmos.DrawLine(l[i] + upset, l[i + 1 >= l.Count ? 0 : i + 1] + upset);
       }
-
     }
-    Debug.Log("Unique:" + edges.UniqueEdges.Count + " Shared:" + edges.SharedEdges.Count);
 
+    // Draw non-shared edges.
     Gizmos.color = Color.magenta;
     foreach (var e in edges.UniqueEdges)
     {
       Gizmos.DrawLine(e.p0, e.p1);
     }
-    Gizmos.color = Color.cyan;
 
-    Vector3 offset = Vector3.up * 0.1f;
-    foreach (var e in edges.SharedEdges)
-    {
-      Gizmos.DrawLine(e.p0 + offset, e.p1 + offset);
-    }
+    // Gizmos.color = Color.cyan;
+    // Vector3 offset = Vector3.up * 0.1f;
+    // foreach (var e in edges.SharedEdges)
+    // {
+    //   Gizmos.DrawLine(e.p0 + offset, e.p1 + offset);
+    // }
   }
 }
