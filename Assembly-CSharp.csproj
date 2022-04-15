@@ -44,6 +44,7 @@
      <Compile Include="Assets\Scripts\RVO2\Vector2.cs" />
      <Compile Include="Assets\Scripts\RVO2\RVOMath.cs" />
      <Compile Include="Assets\Scripts\RVO2\KdTree.cs" />
+     <Compile Include="Assets\Scripts\PathSupplier.cs" />
      <Compile Include="Assets\Scripts\SimpleCameraController.cs" />
      <Compile Include="Assets\Scripts\RVO2Simulator.cs" />
      <Compile Include="Assets\Scripts\RVO2AgentParams.cs" />
@@ -52,8 +53,6 @@
      <Compile Include="Assets\Scripts\RVO2\Agent.cs" />
      <Compile Include="Assets\Scripts\RVO2\Obstacle.cs" />
      <Compile Include="Assets\Scripts\GoalProvider.cs" />
-     <Compile Include="Assets\Scripts\ObstaclesFromNavMesh\EdgesToObstacles.cs" />
-     <Compile Include="Assets\Scripts\PathSupplier.cs" />
      <None Include="Assets\Scripts\RVO2\CMakeLists.txt" />
     <Reference Include="UnityEngine">
         <HintPath>F:\Unity\2020.3.22f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>

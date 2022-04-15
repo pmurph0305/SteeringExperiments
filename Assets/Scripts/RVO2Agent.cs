@@ -5,6 +5,14 @@ using UnityEngine.AI;
 using RVO;
 using System;
 using Vector2 = UnityEngine.Vector2;
+
+
+//TODO:
+// be able to combine forces of movement
+// like use the result of RVO2 for collision avoidance,
+// the path direction
+// and some sort of density flow / influence graph to determine which direction to move.
+
 public class RVO2Agent : MonoBehaviour
 {
   [Header("RVO2 Agent")]
@@ -153,12 +161,19 @@ public class RVO2Agent : MonoBehaviour
     NavMeshHit sample;
     if (NavMesh.SamplePosition(transform.position, out sample, 1f, NavMesh.AllAreas))
     {
-      // Vector3 p = transform.position;
-      // p.y = sample.position.y;
-      transform.position = sample.position;
+      Vector3 p = transform.position;
+      p.y = sample.position.y;
+      transform.position = p;
+      // transform.position = sample.position;
     }
     Vector3 vectorTraveled = transform.position - prev;
-    remainingDistanceToNext -= vectorTraveled.magnitude;
+    float distanceTraveled = vectorTraveled.magnitude;
+    if (distanceTraveled == 0)
+    {
+      // just to ensure it gets pushed a tad.
+      transform.position += new Vector3(UnityEngine.Random.Range(0f, 0.1f), 0, UnityEngine.Random.Range(0f, 0.1f));
+    }
+    remainingDistanceToNext -= distanceTraveled;
     simPosition = GetSimulationPosition();
     // transform.position = simPosition;
     // Debug.Log($"transform:{transformPosition} sim:{simPosition}");
@@ -276,23 +291,11 @@ public class RVO2Agent : MonoBehaviour
         Gizmos.DrawLine(path.corners[i], path.corners[i + 1]);
       }
     }
-    else
-    {
-      // Gizmos.DrawLine(transform.position, transformPosition + prefVel);
-    }
   }
 
   void OnDrawGizmos()
   {
     Gizmos.color = Color.white;
     Gizmos.DrawLine(transform.position, transform.position + prefVel);
-    if (path != null)
-    {
-      Gizmos.color = Color.green;
-      for (int i = currentPathIndex; i < path.corners.Length - 1; i++)
-      {
-        Gizmos.DrawLine(path.corners[i], path.corners[i + 1]);
-      }
-    }
   }
 }
