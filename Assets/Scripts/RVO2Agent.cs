@@ -297,7 +297,14 @@ public class RVO2Agent : MonoBehaviour
         Gizmos.DrawLine(path.corners[i], path.corners[i + 1]);
       }
     }
+    if (Application.isPlaying)
+    {
+      Gizmos.color = Color.red;
+      Gizmos.DrawSphere(GetSimulationPosition(), 1f);
+    }
   }
+
+  // Vector3 simulatorPosition;
 
   void OnDrawGizmos()
   {

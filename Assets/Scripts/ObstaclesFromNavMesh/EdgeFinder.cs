@@ -165,14 +165,14 @@ public class EdgeFinder : MonoBehaviour
 
     //CCW polygons.
     List<List<Vector3>> ccwVertices = new List<List<Vector3>>();
-    foreach (var l in VerticesLists)
+    foreach (var vertList in VerticesLists)
     {
       List<Vector3> ccwVerts = new List<Vector3>();
       int startIndex = 0;
-      Vector3 c = l[0];
-      for (int i = 1; i < l.Count; i++)
+      Vector3 c = vertList[0];
+      for (int i = 0; i < vertList.Count; i++)
       {
-        Vector3 n = l[i];
+        Vector3 n = vertList[i];
         if (n.z >= c.z)
         {
           if (n.x >= c.x)
@@ -180,20 +180,45 @@ public class EdgeFinder : MonoBehaviour
             c = n;
             startIndex = i;
           }
+          else if (n.z > c.z)
+          {
+            c = n;
+            startIndex = i;
+          }
+        }
+        else if (Mathf.Abs(n.z - c.z) < epsilon && n.x >= c.x)
+        {
+          c = n;
+          startIndex = i;
         }
       }
-      int prev = startIndex - 1;
-      int next = startIndex + 1;
-      prev = prev < 0 ? l.Count - 1 : prev;
-      next = next >= l.Count ? 0 : next;
-      int start = next;
-      if (isLeft(l[next], l[startIndex], l[prev]))
+      List<Vector3> orderedVerts = new List<Vector3>();
+      // easier debugging.
+      orderedVerts.AddRange(vertList.GetRange(startIndex, vertList.Count - startIndex));
+      orderedVerts.AddRange(vertList.GetRange(0, startIndex));
+      int prev = orderedVerts.Count - 1;
+      Vector3 previousVert = orderedVerts[orderedVerts.Count - 1];
+      Vector3 nextVert = orderedVerts[1];
+      // if (previousVert.x <= nextVert.x && previousVert.z >= nextVert.z)
+      // {
+      if (isLeft(nextVert, orderedVerts[0], previousVert))
       {
-        l.Reverse();
+        orderedVerts.Reverse();
+        // for debugging
+        // foreach (var v in vertList)
+        // {
+        //   Debug.DrawLine(v, v + Vector3.up * 10f, Color.red, 1f);
+        // }
       }
-      ccwVertices.Add(l);
+      // for debugging.
+      // Debug.DrawLine(orderedVerts[0], orderedVerts[0] + Vector3.up, Color.black);
+      // Debug.DrawLine(previousVert, previousVert + Vector3.up, Color.white);
+      // Debug.DrawLine(nextVert, nextVert + Vector3.up, Color.cyan);
+      ccwVertices.Add(orderedVerts);
     }
 
+
+    //this works.
     int listToReverse = 0;
     // find bounding box set and reverse it so it's an inverted obstacle.
     foreach (var l in ccwVertices)
@@ -204,10 +229,13 @@ public class EdgeFinder : MonoBehaviour
       {
         b.Encapsulate(v);
       }
-
+      Vector3 c = b.center;
+      b.Encapsulate(c + Vector3.up * 10);
+      b.Encapsulate(c - Vector3.up * 10);
+      // b.Encapsulate(c - Vector3.up * 10);
       foreach (var ol in ccwVertices)
       {
-
+        if (ol == l) { Debug.Log("Same list"); continue; }
         foreach (var ov in ol)
         {
           if (!b.Contains(ov))
@@ -225,8 +253,12 @@ public class EdgeFinder : MonoBehaviour
       if (containsAll)
       {
         listToReverse = ccwVertices.IndexOf(l);
+        // Debug.DrawLine(b.center, b.center + b.extents, Color.green);
+        // Debug.DrawLine(b.center, b.center - b.extents, Color.green);
         break;
       }
+      // Debug.DrawLine(b.center, b.center + b.extents, Color.yellow);
+      // Debug.DrawLine(b.center, b.center - b.extents, Color.yellow);
     }
     // Debug.Log("List to reverse:" + listToReverse);
     if (listToReverse < ccwVertices.Count)
@@ -257,11 +289,11 @@ public class EdgeFinder : MonoBehaviour
     }
 
     // Draw non-shared edges.
-    Gizmos.color = Color.magenta;
-    foreach (var e in edges.UniqueEdges)
-    {
-      Gizmos.DrawLine(e.p0, e.p1);
-    }
+    // Gizmos.color = Color.magenta;
+    // foreach (var e in edges.UniqueEdges)
+    // {
+    //   Gizmos.DrawLine(e.p0, e.p1);
+    // }
 
     // Gizmos.color = Color.cyan;
     // Vector3 offset = Vector3.up * 0.1f;
