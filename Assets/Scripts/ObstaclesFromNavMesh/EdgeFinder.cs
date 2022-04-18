@@ -235,7 +235,7 @@ public class EdgeFinder : MonoBehaviour
       // b.Encapsulate(c - Vector3.up * 10);
       foreach (var ol in ccwVertices)
       {
-        if (ol == l) { Debug.Log("Same list"); continue; }
+        if (ol == l) { continue; }
         foreach (var ov in ol)
         {
           if (!b.Contains(ov))
