@@ -36,9 +36,9 @@
     <ImplicitlyExpandDesignTimeFacades>false</ImplicitlyExpandDesignTimeFacades>
   </PropertyGroup>
   <ItemGroup>
-     <Compile Include="Assets\Scripts\ObstaclesFromNavMesh\NavMeshEdges.cs" />
-     <Compile Include="Assets\Scripts\ObstaclesFromNavMesh\EdgeFinder.cs" />
-     <Compile Include="Assets\Scripts\ObstaclesFromNavMesh\Edge.cs" />
+     <Compile Include="Assets\Scripts\RVO2\ObstaclesFromNavMesh\NavMeshEdges.cs" />
+     <Compile Include="Assets\Scripts\RVO2\ObstaclesFromNavMesh\EdgeFinder.cs" />
+     <Compile Include="Assets\Scripts\RVO2\ObstaclesFromNavMesh\Edge.cs" />
      <Compile Include="Assets\TutorialInfo\Scripts\Readme.cs" />
      <Compile Include="Assets\Scripts\RVO2Agent.cs" />
      <Compile Include="Assets\Scripts\RVO2\Vector2.cs" />
