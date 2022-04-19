@@ -277,7 +277,7 @@ public class EdgeFinder : MonoBehaviour
     List<List<Vector3>> lists = ToPolygons(edges);
     Color colorStart = Color.green;
     Color colorEnd = Color.red;
-    Vector3 upset = Vector3.up;
+    Vector3 upset = Vector3.zero;
     foreach (var l in lists)
     {
 
