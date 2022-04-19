@@ -53,6 +53,11 @@
      <Compile Include="Assets\Scripts\RVO2\Agent.cs" />
      <Compile Include="Assets\Scripts\RVO2\Obstacle.cs" />
      <Compile Include="Assets\Scripts\GoalProvider.cs" />
+     <Compile Include="Assets\Scripts\Boids\BoidsSimulation.cs" />
+     <Compile Include="Assets\Scripts\Boids\BoidAgent.cs" />
+     <Compile Include="Assets\Scripts\Boids\BoidAgentScript.cs" />
+     <Compile Include="Assets\Scripts\Boids\BoidSimulationUpdater.cs" />
+     <Compile Include="Assets\Scripts\Boids\BoidsParameters.cs" />
      <None Include="Assets\Scripts\RVO2\CMakeLists.txt" />
     <Reference Include="UnityEngine">
         <HintPath>F:\Unity\2020.3.22f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
