@@ -36,7 +36,7 @@ public class BoidsSimulation
       b.matchVelocity = MatchVelocityWIthNearBoids(b, averageVelocity);
       b.toGoalVelocity = MoveTowardsGoal(b);
       b.boundsVelocity = KeepWithinBounds(b);
-      b.Velocity = b.Velocity + (b.centerOfMassVelocity + b.avoidVelocity + b.matchVelocity + b.toGoalVelocity + b.boundsVelocity);
+      b.Velocity = b.Velocity + (b.centerOfMassVelocity + b.avoidVelocity + b.matchVelocity + b.toGoalVelocity + b.boundsVelocity + RandomVelocity());
       LimitVelocity(b);
       b.Position = b.Position + b.Velocity * timeStep;
     }
@@ -74,6 +74,12 @@ public class BoidsSimulation
     }
 
     return inRange;
+  }
+
+
+  Vector3 RandomVelocity()
+  {
+    return new Vector3(UnityEngine.Random.Range(-bp.RandomVelRange, bp.RandomVelRange), UnityEngine.Random.Range(-bp.RandomVelRange, bp.RandomVelRange), 0);
   }
 
   Vector3 CalculateAverageVelocity()

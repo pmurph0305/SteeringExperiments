@@ -15,4 +15,6 @@ public class BoidsParameters
   public float GoalFactor = 0.02f;
   public float BoundaryFactor = 10;
   public Vector3 Boundaries = Vector3.one * 10;
+
+  public float RandomVelRange = 0.1f;
 }
