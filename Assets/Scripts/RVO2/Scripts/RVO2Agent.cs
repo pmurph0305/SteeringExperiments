@@ -43,9 +43,11 @@ public class RVO2Agent : MonoBehaviour
   [SerializeField] float remainingDistanceToNext;
   [SerializeField] Vector3 directionFromCorners;
 
+  IGoalProvider goalProvider;
 
   private void Start()
   {
+    goalProvider = GoalProvider.Instance;
     agentId = agentParams.AddAgent(GetPosition());
     RVO2Simulator.OnSimulationStepped += OnSimulationSteppedHandler;
     path = new NavMeshPath();
@@ -57,7 +59,7 @@ public class RVO2Agent : MonoBehaviour
     if (!UseGoalProvider) { return false; }
     if (UseGoalProvider)
     {
-      float d = Vector3.Distance(GoalPosition, GoalProvider.Goal);
+      float d = Vector3.Distance(GoalPosition, goalProvider.GetPosition());
       if (d > 10f)
       {
         return true;
@@ -102,13 +104,13 @@ public class RVO2Agent : MonoBehaviour
     //   // Debug.Log("Failed sample.");
     // }
     // pathMarker.End();
-    GoalPosition = GoalProvider.Goal;
+    GoalPosition = goalProvider.GetPosition();
     PathSupplier.RequestPath(this.transform, GetGoal, OnGetNewPath);
   }
 
   Vector3 GetGoal()
   {
-    return GoalProvider.Goal;
+    return goalProvider.GetPosition();
   }
 
 
@@ -279,7 +281,7 @@ public class RVO2Agent : MonoBehaviour
     }
     else
     {
-      dir = (GoalProvider.Goal - transform.position);
+      dir = (goalProvider.GetPosition() - transform.position);
     }
     dir.Normalize();
     dir *= agentParams.MaxSpeed;
@@ -294,7 +296,7 @@ public class RVO2Agent : MonoBehaviour
     }
     else
     {
-      dir = (GoalProvider.Goal - transform.position);
+      dir = (goalProvider.GetPosition() - transform.position);
     }
     dir.y = 0;
     dir.Normalize();
