@@ -63,6 +63,8 @@
      <Compile Include="Assets\Scripts\Steering\PlayerGoalProvider.cs" />
      <Compile Include="Assets\Scripts\Steering\SteerData.cs" />
      <Compile Include="Assets\Scripts\IGoalProvider.cs" />
+     <Compile Include="Assets\Scripts\GoalMover.cs" />
+     <Compile Include="Assets\Scripts\ContextMap\ContextSteering.cs" />
      <None Include="Assets\Scripts\RVO2\CMakeLists.txt" />
     <Reference Include="UnityEngine">
         <HintPath>F:\Unity\2020.3.22f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
