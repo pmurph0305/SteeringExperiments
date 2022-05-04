@@ -43,9 +43,13 @@ public class ContextSteering : MonoBehaviour
     Normalize(DangerContext);
     MaskDanger(InterestContext, DangerContext);
     Vector3 scaledDirection = CalculateScaledMovementVector(InterestContext);
-    MovementDirection = scaledDirection.normalized * Speed;
+    // movement is steered over time.
     // MovementDirection += scaledDirection;
     // MovementDirection = Vector3.ClampMagnitude(MovementDirection, Speed);
+
+    // context informs movement instantaneously
+    // without normalization, its veyr slow when the goal is far awway, but you want a more consistent speed.
+    MovementDirection = scaledDirection.normalized * Speed;
     transform.position += MovementDirection * Time.deltaTime;
   }
 
