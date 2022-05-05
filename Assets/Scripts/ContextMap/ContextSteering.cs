@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+#if (UNITY_EDITOR)
+using UnityEditor;
+#endif
 public class ContextSteering : MonoBehaviour
 {
   public float Speed = 5f;
@@ -9,15 +11,11 @@ public class ContextSteering : MonoBehaviour
 
   public Transform[] goals;
 
-  [SerializeField] float[] InterestContext = new float[8];
+
 
   public float MinDangerRange = 5f;
+  public float DangerThreshold = 0.5f;
   public float MinCollisionRange = 5f;
-  [SerializeField] float[] DangerContext = new float[8];
-
-  [SerializeField] float[] CollisionContext = new float[8];
-
-  [SerializeField] float[] CombinedContext = new float[8];
 
 
   Vector3 basisDirection = Vector3.right;
@@ -26,6 +24,13 @@ public class ContextSteering : MonoBehaviour
 
 
   [Header("Debug Visualization")]
+  [SerializeField] float[] InterestContext = new float[8];
+  [SerializeField] float[] DangerContext = new float[8];
+
+  [SerializeField] float[] CollisionContext = new float[8];
+
+  [SerializeField] float[] CombinedContext = new float[8];
+
   public float SeekLength = 10;
 
   // Start is called before the first frame update
@@ -34,21 +39,25 @@ public class ContextSteering : MonoBehaviour
 
   }
 
-  Vector3 MovementDirection;
+  [SerializeField] Vector3 MovementDirection;
+  [SerializeField] Vector3 PreviousMovement;
   public Vector3 GetMovementDirection()
   {
     return MovementDirection;
   }
   private void Update()
   {
+    PreviousMovement = MovementDirection;
     CalculateInterestContext();
+    Normalize(InterestContext);
     CalculateDangerContext();
     CalculateCollisionContext();
 
     Copy(CombinedContext, InterestContext);
     MaskNonMiminums(CombinedContext, DangerContext);
     Subtract(CombinedContext, CollisionContext);
-    Vector3 scaledDirection = CalculateScaledMovementVector(CombinedContext);
+    // Vector3 scaledDirection = CalculateScaledMovementVector(CombinedContext);
+    Vector3 scaledDirection = CalculateAverageInterestDirection(CombinedContext);
     // movement is steered over time.
     // MovementDirection += scaledDirection;
     // MovementDirection = Vector3.ClampMagnitude(MovementDirection, Speed);
@@ -57,6 +66,18 @@ public class ContextSteering : MonoBehaviour
     // without normalization, its veyr slow when the goal is far awway, but you want a more consistent speed.
     MovementDirection = scaledDirection.normalized * Speed;
     transform.position += MovementDirection * Time.deltaTime;
+  }
+
+
+  Vector3 CalculateAverageInterestDirection(float[] context)
+  {
+    Vector3 total = Vector3.zero;
+    for (int i = 0; i < context.Length; i++)
+    {
+      // if (context[i] < 0) continue;
+      total += ToWorldDirection(i) * context[i];
+    }
+    return total / context.Length;
   }
 
   [SerializeField] Vector3[] neighbours;
@@ -72,14 +93,11 @@ public class ContextSteering : MonoBehaviour
     // return primary;
     neighbours = new Vector3[4];
     GetNeighbours(maxIndex, context, neighbours);
-
     for (int i = 0; i < neighbours.Length; i++)
     {
       primary += neighbours[i];
     }
-
     return primary / (neighbours.Length + 1);
-    // return primary;
   }
 
   void GetNeighbours(int index, float[] context, Vector3[] array)
@@ -87,14 +105,14 @@ public class ContextSteering : MonoBehaviour
     int num = array.Length / 2;
     for (int i = 0; i < array.Length / 2; i++)
     {
-      int i1 = (index + i) % (array.Length);
-      int i2 = (index - i) % (array.Length);
-      i2 = i2 < 0 ? i2 + array.Length : i2;
-      if (i1 < 0 || i1 >= array.Length)
+      int i1 = (index + i + 1) % (context.Length);
+      int i2 = (index - i - 1) % (context.Length);
+      i2 = i2 < 0 ? i2 + context.Length : i2;
+      if (i1 < 0 || i1 >= context.Length)
       {
         Debug.LogError("Error:" + index + " i1:" + i1 + " len:" + array.Length + " i:" + i);
       }
-      if (i2 < 0 || i2 >= array.Length)
+      if (i2 < 0 || i2 >= context.Length)
       {
         Debug.LogError("Error:" + index + " i2:" + i2 + " len:" + array.Length + " i:" + i);
       }
@@ -206,7 +224,8 @@ public class ContextSteering : MonoBehaviour
 
     int distance = CalculateDistance(from, to, length);
     // linear falloff.
-    float val = (length / 2f - distance) / (length / 2f) * amount;
+    float val = amount;
+    // float val = (length / 2f - distance) / (length / 2f) * amount;
     // esssentially we are making the falloff based on the angle form the actual world direction of the index, and the direction the goal is towards.
     float angle = Vector3.Angle(ToWorldDirection(to), direction);
     // 180f is the furthest away a direction can be angle-wise
@@ -256,12 +275,17 @@ public class ContextSteering : MonoBehaviour
     foreach (var item in others)
     {
       if (item == this) continue;
+      // is the object outside of our view range?
       float angleToObject = Vector3.Angle(MovementDirection, item.transform.position - transform.position);
       if (angleToObject > 45f) continue;
       Vector3 collision = Vector3.zero;
-      if (!WillCollide(transform.position, MovementDirection, item.transform.position, item.GetMovementDirection(), out collision)) continue;
+      if (!WillCollide(transform.position, MovementDirection, item.transform.position, item.GetMovementDirection(), out collision, 0.1f)) continue;
       Vector3 directionToCollision = collision - transform.position;
-      if (Vector3.Angle(MovementDirection, directionToCollision) > 30f) return;
+      // not needed, collision is always in the movement direction.
+      // if (Vector3.Angle(MovementDirection, directionToCollision) > 45f) return;
+
+
+      // is the distance within a distance we care about?
       float distance = Vector3.Distance(collision, transform.position);
       if (distance > MinCollisionRange) continue;
       collisionCount++;
@@ -272,9 +296,10 @@ public class ContextSteering : MonoBehaviour
       int slot = ToContextMapSlot(directionToCollision);
       float danger = 1f / distance;
       danger = Mathf.Clamp01(danger);
+      // Debug.Log("Collision", this.gameObject);
       for (int i = 0; i < CollisionContext.Length; i++)
       {
-        float amount = CalculateFalloffDanger(slot, i, CollisionContext.Length, danger);
+        float amount = CalculateFalloffAngled(slot, i, CollisionContext.Length, danger, MovementDirection);
         CollisionContext[i] = CollisionContext[i] > amount ? CollisionContext[i] : amount;
       }
     }
@@ -295,7 +320,7 @@ public class ContextSteering : MonoBehaviour
       danger = Mathf.Clamp01(danger);
       for (int i = 0; i < DangerContext.Length; i++)
       {
-        float amount = CalculateFalloffDanger(slot, i, DangerContext.Length, danger);
+        float amount = CalculateFalloffAngled(slot, i, DangerContext.Length, danger, directionToOther);
         DangerContext[i] = DangerContext[i] > amount ? DangerContext[i] : amount;
       }
     }
@@ -308,38 +333,8 @@ public class ContextSteering : MonoBehaviour
   [SerializeField] List<Vector3> withMovementDir = new List<Vector3>();
   [SerializeField] List<float> collisionDistances = new List<float>();
 
-  bool WillCollide(Vector3 p1, Vector3 v1, Vector3 p2, Vector3 v2, out Vector3 collision)
+  bool WillCollide(Vector3 p1, Vector3 v1, Vector3 p2, Vector3 v2, out Vector3 collision, float collisionRadius)
   {
-    // // ax +by = c.
-    // Vector3 p1b = p1 + v1;
-    // Vector3 p2b = p2 + v2;
-
-    // //l1 ax+by=c
-
-    // //l2 ax+by=c
-
-    // float a1 = p1b.z - p1.z;
-    // float b1 = p1.x - p1b.x;
-    // float c1 = a1 * p1.x + b1 * p1.z;
-
-    // float a2 = p2b.z - p2.z;
-    // float b2 = p2.x - p2b.x;
-    // float c2 = a1 * p2.x + b2 * p2.z;
-
-    // float det = a1 * b2 - a2 * b1;
-    // if (det == 0)
-    // {
-    //   collision = Vector3.zero;
-    //   return false;
-    // }
-    // else
-    // {
-    //   float x = (b2 * c1 - b1 * c2) / det;
-    //   float z = (a1 * c2 - a2 * c1) / det;
-    //   collision = new Vector3(x, 0, z);
-    //   return true;
-    // }
-
     // intersection for y=mx+b lines
     // ax +c = bx + d
     float a = v1.z / v1.x;
@@ -348,21 +343,38 @@ public class ContextSteering : MonoBehaviour
 
     float b = v2.z / v2.x;
     float d = p2.z - p2.x * b;
-    if (a == b)
+    if (a == b) // parallel
     {
       collision = Vector3.zero;
       return false;
     }
 
     float x = (d - c) / (a - b);
-    float y = a * x + c;
-    if (float.IsNaN(x) || float.IsNaN(y))
+    float z = a * x + c;
+
+    if (float.IsNaN(x) || float.IsNaN(z))
     {
       collision = Vector3.zero;
       return false;
     }
-    collision = new Vector3(x, 0, y);
-    return true;
+
+    // collides at (x, 0, z);
+    collision = new Vector3(x, 0, z);
+    // angle and velocity is behind p2.
+    if (Vector3.Angle(collision - p2, v2) > 90f)
+    {
+      return false;
+    }
+    // both points reach the collision at approx the same time
+    // doesn't actually facotr in radius of the objects or anything.
+    float t1 = Vector3.Distance(p1, collision) / v1.magnitude;
+    float t2 = Vector3.Distance(p2, collision) / v2.magnitude;
+    if (Mathf.Abs(t1 - t2) < collisionRadius)
+    {
+      return true;
+    }
+    return false;
+
 
   }
 
@@ -389,7 +401,7 @@ public class ContextSteering : MonoBehaviour
     for (int i = 0; i < mask.Length; i++)
     {
       // above the min danger, and the danger is closer than the interest.
-      if (mask[i] > minDanger) //&& interest[i] < danger[i])
+      if (mask[i] > minDanger && mask[i] > DangerThreshold) //&& interest[i] < danger[i])
       {
         map[i] = -1;
       }
@@ -423,7 +435,7 @@ public class ContextSteering : MonoBehaviour
     int index = -1;
     for (int i = 0; i < context.Length; i++)
     {
-      if (context[i] > max && context[i] >= 0)
+      if (context[i] > max)
       {
         max = context[i];
         index = i;
@@ -438,27 +450,37 @@ public class ContextSteering : MonoBehaviour
 
   public void DrawContextMap(float[] map, float drawLength, Vector3 offset)
   {
-    float max = GetMax(map);
+    // float max = GetMax(map);
     for (int i = 0; i < map.Length; i++)
     {
       if (map[i] < 0) continue;
-      float length = map[i] / max * drawLength;
+      float length = map[i] * drawLength;/// max * drawLength;
       Gizmos.DrawLine(transform.position + offset, transform.position + offset + ToWorldDirection(i) * length);
     }
   }
 
   private void OnDrawGizmosSelected()
   {
-    // CalculateInterestContext();
-    // Gizmos.color = Color.white;
-    // DrawContextMap(InterestContext, SeekLength, Vector3.zero);
+    Vector3 scaledMovement = MovementDirection;
+#if (UNITY_EDITOR)
+    if (!EditorApplication.isPlaying && !EditorApplication.isPaused)
+    {
+      CalculateInterestContext();
+      CalculateDangerContext();
+      scaledMovement = CalculateScaledMovementVector(InterestContext).normalized * Speed;
+    }
+#endif
+    Gizmos.color = Color.white;
+    DrawContextMap(InterestContext, SeekLength, Vector3.zero);
 
-    // // CalculateDangerContext();
-    // Gizmos.color = Color.black;
-    // DrawContextMap(DangerContext, SeekLength, Vector3.up);
+    Gizmos.color = Color.black;
+    DrawContextMap(DangerContext, SeekLength, Vector3.up);
 
     Gizmos.color = Color.green;
-    Gizmos.DrawLine(transform.position, transform.position + movementDir);
+    Gizmos.DrawLine(transform.position, transform.position + scaledMovement);
+
+    Gizmos.color = new Color(79f, 0, 166f);
+    Gizmos.DrawLine(transform.position, transform.position + PreviousMovement);
     for (int i = 0; i < collisionWith.Count; i++)
     {
       Vector3 collision = collisionPos[i];
