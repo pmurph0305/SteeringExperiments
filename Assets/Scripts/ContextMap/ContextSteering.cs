@@ -6,14 +6,13 @@ using UnityEditor;
 #endif
 public class ContextSteering : MonoBehaviour
 {
-  public float Speed = 5f;
-  public Transform goal;
+  public float Acceleration = 1.0f;
+  public float MaxSpeed = 5f;
 
-  public Transform[] goals;
+  public Transform[] goals = new Transform[0];
 
-
-
-  public float MinDangerRange = 5f;
+  public float MinDangerRange = 1f;
+  public float MaxDangerRange = 3f;
   public float DangerThreshold = 0.5f;
   public float MinCollisionRange = 5f;
 
@@ -36,7 +35,8 @@ public class ContextSteering : MonoBehaviour
   // Start is called before the first frame update
   void Start()
   {
-
+    Acceleration = Random.Range(0.1f, 2f);
+    MaxSpeed = Random.Range(2f, 8f);
   }
 
   [SerializeField] Vector3 MovementDirection;
@@ -47,9 +47,10 @@ public class ContextSteering : MonoBehaviour
   }
   private void Update()
   {
+    ContextCount = NearbyContextObjects.Count;
     PreviousMovement = MovementDirection;
     CalculateInterestContext();
-    Normalize(InterestContext);
+    // Normalize(InterestContext);
     CalculateDangerContext();
     CalculateCollisionContext();
 
@@ -58,13 +59,13 @@ public class ContextSteering : MonoBehaviour
     Subtract(CombinedContext, CollisionContext);
     // Vector3 scaledDirection = CalculateScaledMovementVector(CombinedContext);
     Vector3 scaledDirection = CalculateAverageInterestDirection(CombinedContext);
-    // movement is steered over time.
-    // MovementDirection += scaledDirection;
-    // MovementDirection = Vector3.ClampMagnitude(MovementDirection, Speed);
+    // movement is steered over time
+    MovementDirection += scaledDirection.normalized * Acceleration;
+    MovementDirection = Vector3.ClampMagnitude(MovementDirection, MaxSpeed);
 
     // context informs movement instantaneously
     // without normalization, its veyr slow when the goal is far awway, but you want a more consistent speed.
-    MovementDirection = scaledDirection.normalized * Speed;
+    // MovementDirection = scaledDirection * MaxSpeed;
     transform.position += MovementDirection * Time.deltaTime;
   }
 
@@ -238,7 +239,17 @@ public class ContextSteering : MonoBehaviour
       Debug.LogError("NAN:" + from + ":" + to + ":" + length + ":" + amount);
     }
     return val;
+  }
 
+  HashSet<ContextSteering> NearbyContextObjects = new HashSet<ContextSteering>();
+  public int ContextCount;
+  public bool AddNearbyContext(ContextSteering obj)
+  {
+    return NearbyContextObjects.Add(obj);
+  }
+  public bool RemoveNearbyContext(ContextSteering obj)
+  {
+    return NearbyContextObjects.Remove(obj);
   }
 
   void CalculateInterestContext()
@@ -265,32 +276,36 @@ public class ContextSteering : MonoBehaviour
   void CalculateCollisionContext()
   {
     Clear(CollisionContext);
-    var others = GameObject.FindObjectsOfType<ContextSteering>();
     collisionCount = 0;
     collisionPos.Clear();
     collisionWith.Clear();
     withMovementDir.Clear();
     collisionDistances.Clear();
     movementDir = MovementDirection;
-    foreach (var item in others)
+    Vector3 position = transform.position;
+    foreach (var item in NearbyContextObjects)
     {
       if (item == this) continue;
+      Vector3 itemPos = item.transform.position;
+
       // is the object outside of our view range?
-      float angleToObject = Vector3.Angle(MovementDirection, item.transform.position - transform.position);
+      float angleToObject = Vector3.Angle(MovementDirection, itemPos - position);
       if (angleToObject > 45f) continue;
+
+      // will we collide with it at some point?
       Vector3 collision = Vector3.zero;
-      if (!WillCollide(transform.position, MovementDirection, item.transform.position, item.GetMovementDirection(), out collision, 0.1f)) continue;
-      Vector3 directionToCollision = collision - transform.position;
+      if (!WillCollide(position, MovementDirection, itemPos, item.GetMovementDirection(), out collision, 0.1f)) continue;
+      Vector3 directionToCollision = collision - position;
+
       // not needed, collision is always in the movement direction.
       // if (Vector3.Angle(MovementDirection, directionToCollision) > 45f) return;
 
-
       // is the distance within a distance we care about?
-      float distance = Vector3.Distance(collision, transform.position);
+      float distance = Vector3.Distance(collision, position);
       if (distance > MinCollisionRange) continue;
       collisionCount++;
       collisionPos.Add(collision);
-      collisionWith.Add(item.transform.position);
+      collisionWith.Add(itemPos);
       withMovementDir.Add(item.GetMovementDirection());
       collisionDistances.Add(distance);
       int slot = ToContextMapSlot(directionToCollision);
@@ -308,14 +323,16 @@ public class ContextSteering : MonoBehaviour
   void CalculateDangerContext()
   {
     Clear(DangerContext);
-    var others = GameObject.FindObjectsOfType<ContextSteering>();
-    foreach (var item in others)
+    float range = (MaxDangerRange - MinDangerRange);
+    foreach (var item in NearbyContextObjects)
     {
       if (item == this) continue;
       float distance = Vector3.Distance(item.transform.position, transform.position);
       if (distance > MinDangerRange) continue;
       Vector3 directionToOther = item.transform.position - transform.position;
       int slot = ToContextMapSlot(directionToOther);
+      // float danger = (range - (distance - MinDangerRange)) / range;
+
       float danger = 1 / distance;
       danger = Mathf.Clamp01(danger);
       for (int i = 0; i < DangerContext.Length; i++)
@@ -467,7 +484,7 @@ public class ContextSteering : MonoBehaviour
     {
       CalculateInterestContext();
       CalculateDangerContext();
-      scaledMovement = CalculateScaledMovementVector(InterestContext).normalized * Speed;
+      scaledMovement = CalculateScaledMovementVector(InterestContext).normalized * MaxSpeed;
     }
 #endif
     Gizmos.color = Color.white;
