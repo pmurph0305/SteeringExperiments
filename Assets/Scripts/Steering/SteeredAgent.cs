@@ -215,10 +215,20 @@ public class SteeredAgent : MonoBehaviour
 
   Vector3 Seek(Vector3 currentVelocity, Vector3 goal, float maxForce)
   {
-    desiredSeek = Vector3.Normalize(goal - transform.position) * maxForce;
-    // desired steering delta
-    Vector3 seeksteering = (desiredSeek - currentVelocity);
-    seeksteering = Vector3.ClampMagnitude(seeksteering, maxForce);
+    // from gdc the next vector, fixing seek to be a force.
+    //     desiredSeek = goal - transform.position;
+    // desiredSeek *= MaxSpeed / desiredSeek.magnitude;
+
+    // // desired steering delta
+    // Vector3 seeksteering = (desiredSeek - currentVelocity);
+    // seeksteering *= maxForce / MaxSpeed;
+    // return seeksteering;
+
+    // a velocity.
+    desiredSeek = Vector3.Normalize(goal - transform.position) * MaxSpeed;
+    // desired steering
+    Vector3 seeksteering = (desiredSeek - currentVelocity); // a velocity.
+    seeksteering *= (maxForce / MaxSpeed); // as a force.
     return seeksteering;
   }
 
